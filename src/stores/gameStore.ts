@@ -5,7 +5,7 @@ interface GameState {
   players: Player[]
   settings: GameSettings
   initialized: boolean
-  diffTimeouts: Map<string, NodeJS.Timeout>
+  diffTimeouts: Map<string, ReturnType<typeof setTimeout>>
   
   // Actions
   init: () => Promise<void>
@@ -181,7 +181,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   resetGame: () => {
-    const { settings, players, diffTimeouts } = get()
+    const { players, diffTimeouts } = get()
     
     // Clear all timeouts
     diffTimeouts.forEach((timeout) => clearTimeout(timeout))
