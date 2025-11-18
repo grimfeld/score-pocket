@@ -14,17 +14,18 @@ interface GameState {
   setIncrementStep: (step: number) => void
   setNumPlayers: (num: number) => void
   setPlayerNames: (names: string[]) => void
+  setDefaultScore: (score: number) => void
   resetGame: () => void
   saveToDB: () => Promise<void>
   resetPlayerDiff: (playerId: string) => void
 }
 
-const createDefaultPlayers = (count: number): Player[] => {
+const createDefaultPlayers = (count: number, defaultScore: number = 0): Player[] => {
   return Array.from({ length: count }, (_, i) => ({
     id: `player-${i + 1}`,
     name: `Player ${i + 1}`,
-    totalScore: 0,
-    lastScore: 0,
+    totalScore: defaultScore,
+    lastScore: defaultScore,
     diff: 0,
   }))
 }
@@ -32,10 +33,11 @@ const createDefaultPlayers = (count: number): Player[] => {
 const defaultSettings: GameSettings = {
   incrementStep: 1,
   numPlayers: 4,
+  defaultScore: 0,
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
-  players: createDefaultPlayers(4),
+  players: createDefaultPlayers(4, defaultSettings.defaultScore),
   settings: defaultSettings,
   initialized: false,
   diffTimeouts: new Map(),
@@ -44,6 +46,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     try {
       const saved = await db.loadSession()
       if (saved) {
+        // Migrate old settings that don't have defaultScore
+        const migratedSettings: GameSettings = {
+          ...defaultSettings,
+          ...saved.settings,
+          defaultScore: saved.settings.defaultScore ?? defaultSettings.defaultScore,
+        }
+        
         // Reset all diffs to 0 when loading (timeouts aren't persisted)
         const playersWithResetDiff = saved.players.map((player) => ({
           ...player,
@@ -52,12 +61,12 @@ export const useGameStore = create<GameState>((set, get) => ({
         }))
         set({
           players: playersWithResetDiff,
-          settings: saved.settings,
+          settings: migratedSettings,
           initialized: true,
         })
       } else {
         set({
-          players: createDefaultPlayers(defaultSettings.numPlayers),
+          players: createDefaultPlayers(defaultSettings.numPlayers, defaultSettings.defaultScore),
           settings: defaultSettings,
           initialized: true,
         })
@@ -65,7 +74,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     } catch (error) {
       console.error('Failed to load session:', error)
       set({
-        players: createDefaultPlayers(defaultSettings.numPlayers),
+        players: createDefaultPlayers(defaultSettings.numPlayers, defaultSettings.defaultScore),
         settings: defaultSettings,
         initialized: true,
       })
@@ -132,6 +141,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().saveToDB()
   },
 
+  setDefaultScore: (score: number) => {
+    const { settings } = get()
+    set({
+      settings: {
+        ...settings,
+        defaultScore: score,
+      },
+    })
+    get().saveToDB()
+  },
+
   setNumPlayers: (num: number) => {
     const { players, settings, diffTimeouts } = get()
     const currentCount = players.length
@@ -141,8 +161,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       const newPlayers = Array.from({ length: num - currentCount }, (_, i) => ({
         id: `player-${currentCount + i + 1}`,
         name: `Player ${currentCount + i + 1}`,
-        totalScore: 0,
-        lastScore: 0,
+        totalScore: settings.defaultScore,
+        lastScore: settings.defaultScore,
         diff: 0,
       }))
       set({
@@ -181,7 +201,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   resetGame: () => {
-    const { players, diffTimeouts } = get()
+    const { players, settings, diffTimeouts } = get()
     
     // Clear all timeouts
     diffTimeouts.forEach((timeout) => clearTimeout(timeout))
@@ -189,8 +209,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     
     const resetPlayers = players.map((player) => ({
       ...player,
-      totalScore: 0,
-      lastScore: 0,
+      totalScore: settings.defaultScore,
+      lastScore: settings.defaultScore,
       diff: 0,
     }))
     set({ players: resetPlayers })

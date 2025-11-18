@@ -29,10 +29,11 @@ interface SettingsPanelProps {
 }
 
 export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
-  const { players, settings, setNumPlayers, setPlayerNames, setIncrementStep, resetGame } = useGameStore()
+  const { players, settings, setNumPlayers, setPlayerNames, setIncrementStep, setDefaultScore, resetGame } = useGameStore()
   const [numPlayers, setNumPlayersLocal] = useState(settings.numPlayers)
   const [playerNames, setPlayerNamesLocal] = useState<string[]>([])
   const [incrementStep, setIncrementStepLocal] = useState(settings.incrementStep)
+  const [defaultScore, setDefaultScoreLocal] = useState(settings.defaultScore ?? 0)
   const [showResetDialog, setShowResetDialog] = useState(false)
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
       setNumPlayersLocal(settings.numPlayers)
       setPlayerNamesLocal(players.map((p) => p.name))
       setIncrementStepLocal(settings.incrementStep)
+      setDefaultScoreLocal(settings.defaultScore ?? 0)
     }
   }, [open, settings, players])
 
@@ -50,6 +52,10 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
     
     if (incrementStep !== settings.incrementStep) {
       setIncrementStep(incrementStep)
+    }
+
+    if (defaultScore !== (settings.defaultScore ?? 0)) {
+      setDefaultScore(defaultScore)
     }
 
     // Update player names if they've changed
@@ -163,6 +169,27 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
 
             <Separator />
 
+            {/* Default Score */}
+            <div className="space-y-2">
+              <Label htmlFor="default-score">Default Score</Label>
+              <Input
+                id="default-score"
+                type="number"
+                value={defaultScore}
+                onChange={(e) => {
+                  const score = parseInt(e.target.value, 10)
+                  if (!isNaN(score)) {
+                    setDefaultScoreLocal(score)
+                  }
+                }}
+              />
+              <p className="text-sm text-muted-foreground">
+                Starting value for all counters. Used when resetting scores (useful for decreasing scores or health points).
+              </p>
+            </div>
+
+            <Separator />
+
             {/* Reset Button */}
             <div className="space-y-2">
               <Label>Game Actions</Label>
@@ -174,7 +201,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                 Reset All Scores
               </Button>
               <p className="text-sm text-muted-foreground">
-                Reset all player scores to zero
+                Reset all player scores to the default value ({settings.defaultScore ?? 0})
               </p>
             </div>
           </div>
@@ -194,7 +221,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
           <AlertDialogHeader>
             <AlertDialogTitle>Reset All Scores?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will reset all player scores to zero. This action cannot be undone.
+              This will reset all player scores to {settings.defaultScore ?? 0}. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

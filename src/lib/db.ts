@@ -18,6 +18,7 @@ export interface Player {
 export interface GameSettings {
   incrementStep: number
   numPlayers: number
+  defaultScore: number
 }
 
 class IndexedDBWrapper {
