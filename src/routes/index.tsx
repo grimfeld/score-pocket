@@ -1,9 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useGameStore } from '@/stores/gameStore'
 import { useEffect } from 'react'
 import PlayerCard from '@/components/PlayerCard'
 import SettingsPanel from '@/components/SettingsPanel'
-import { Settings } from 'lucide-react'
+import { Settings, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 
@@ -14,6 +14,7 @@ export const Route = createFileRoute('/')({
 function GameView() {
   const { players, initialized, init } = useGameStore()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (!initialized) {
@@ -47,8 +48,16 @@ function GameView() {
 
   return (
     <div className="min-h-screen bg-background p-3 sm:p-4 md:p-6 lg:p-8 landscape:p-4">
-      {/* Header with Settings Button */}
-      <div className="mb-4 sm:mb-6 flex justify-end">
+      {/* Header with Settings and Leaderboard Buttons */}
+      <div className="mb-4 sm:mb-6 flex justify-end gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => navigate({ to: '/leaderboard' })}
+          className="h-10 w-10 sm:h-12 sm:w-12"
+        >
+          <Trophy className="h-5 w-5" />
+        </Button>
         <Button
           variant="outline"
           size="icon"
