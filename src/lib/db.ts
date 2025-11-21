@@ -91,7 +91,8 @@ class IndexedDBWrapper {
       request.onsuccess = () => {
         const result = request.result
         if (result) {
-          const { id, ...session } = result
+          const { id: _id, ...session } = result
+          void _id
           resolve(session as GameSession)
         } else {
           resolve(null)
