@@ -147,7 +147,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                     </Label>
                     <Input
                       id={`player-${index}`}
-                      value={playerNames[index] || `Player ${index + 1}`}
+                      value={playerNames[index] ?? `Player ${index + 1}`}
                       onChange={(e) => handlePlayerNameChange(index, e.target.value)}
                       placeholder={`Player ${index + 1}`}
                     />
