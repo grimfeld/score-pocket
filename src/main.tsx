@@ -3,8 +3,14 @@ import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { routeTree } from './routeTree.gen'
+import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import { db } from './lib/db'
+
+// PWA: register service worker (auto-updates when a new version is available)
+if (import.meta.env.PROD) {
+  registerSW({ immediate: true })
+}
 
 // Initialize IndexedDB
 db.init().catch(console.error)

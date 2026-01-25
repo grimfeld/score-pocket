@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 512 512" role="img" aria-label="Score Pocket favicon">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="64" x2="448" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#111827" />
+      <stop offset="1" stop-color="#000000" />
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="384" height="384" rx="112" fill="url(#bg)" />
+  <path
+    d="M176 228c0-22.091 17.909-40 40-40h80c22.091 0 40 17.909 40 40v84c0 70.692-46.422 120-80 120s-80-49.308-80-120v-84z"
+    fill="none"
+    stroke="#e5e7eb"
+    stroke-width="22"
+    stroke-linejoin="round"
+  />
+  <path d="M204 252h104" fill="none" stroke="#e5e7eb" stroke-width="18" stroke-linecap="round" opacity="0.9" />
+</svg>

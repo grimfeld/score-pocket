@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Score Pocket icon">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="64" x2="448" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#111827" />
+      <stop offset="1" stop-color="#000000" />
+    </linearGradient>
+    <linearGradient id="accent" x1="160" y1="160" x2="352" y2="416" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22c55e" stop-opacity="0.18" />
+      <stop offset="1" stop-color="#0ea5e9" stop-opacity="0.10" />
+    </linearGradient>
+  </defs>
+
+  <!-- Maskable-safe background -->
+  <rect x="64" y="64" width="384" height="384" rx="112" fill="url(#bg)" />
+
+  <!-- Pocket body (subtle fill) -->
+  <path
+    d="M176 196c0-13.255 10.745-24 24-24h112c13.255 0 24 10.745 24 24v124c0 74.11-51.6 124-104 124S176 394.11 176 320V196z"
+    fill="url(#accent)"
+  />
+
+  <!-- Pocket outline -->
+  <path
+    d="M176 228c0-22.091 17.909-40 40-40h80c22.091 0 40 17.909 40 40v84c0 70.692-46.422 120-80 120s-80-49.308-80-120v-84z"
+    fill="none"
+    stroke="#e5e7eb"
+    stroke-width="20"
+    stroke-linejoin="round"
+  />
+
+  <!-- Pocket seam -->
+  <path d="M204 252h104" fill="none" stroke="#e5e7eb" stroke-width="18" stroke-linecap="round" opacity="0.9" />
+  <path
+    d="M224 332c16 12 48 12 64 0"
+    fill="none"
+    stroke="#e5e7eb"
+    stroke-width="18"
+    stroke-linecap="round"
+    opacity="0.9"
+  />
+</svg>
