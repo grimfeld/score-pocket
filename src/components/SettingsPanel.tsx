@@ -30,10 +30,10 @@ interface SettingsPanelProps {
 
 export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
   const { players, settings, setNumPlayers, setPlayerNames, setIncrementStep, setDefaultScore, resetGame } = useGameStore()
-  const [numPlayers, setNumPlayersLocal] = useState(settings.numPlayers)
+  const [numPlayers, setNumPlayersLocal] = useState<number | ''>(settings.numPlayers)
   const [playerNames, setPlayerNamesLocal] = useState<string[]>([])
-  const [incrementStep, setIncrementStepLocal] = useState(settings.incrementStep)
-  const [defaultScore, setDefaultScoreLocal] = useState(settings.defaultScore ?? 0)
+  const [incrementStep, setIncrementStepLocal] = useState<number | ''>(settings.incrementStep)
+  const [defaultScore, setDefaultScoreLocal] = useState<number | ''>(settings.defaultScore ?? 0)
   const [showResetDialog, setShowResetDialog] = useState(false)
 
   useEffect(() => {
@@ -46,16 +46,20 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
   }, [open, settings, players])
 
   const handleSave = () => {
-    if (numPlayers !== settings.numPlayers) {
-      setNumPlayers(numPlayers)
-    }
-    
-    if (incrementStep !== settings.incrementStep) {
-      setIncrementStep(incrementStep)
+    const playerCount = typeof numPlayers === 'number' ? numPlayers : settings.numPlayers
+    const stepValue = typeof incrementStep === 'number' ? incrementStep : settings.incrementStep
+    const defaultScoreValue = typeof defaultScore === 'number' ? defaultScore : settings.defaultScore ?? 0
+
+    if (playerCount !== settings.numPlayers) {
+      setNumPlayers(playerCount)
     }
 
-    if (defaultScore !== (settings.defaultScore ?? 0)) {
-      setDefaultScore(defaultScore)
+    if (stepValue !== settings.incrementStep) {
+      setIncrementStep(stepValue)
+    }
+
+    if (defaultScoreValue !== (settings.defaultScore ?? 0)) {
+      setDefaultScore(defaultScoreValue)
     }
 
     // Update player names if they've changed
@@ -74,6 +78,11 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
   }
 
   const handleNumPlayersChange = (value: string) => {
+    if (value === '') {
+      setNumPlayersLocal('')
+      return
+    }
+
     const num = parseInt(value, 10)
     if (!isNaN(num) && num >= 2) {
       setNumPlayersLocal(num)
@@ -96,6 +105,8 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
     setPlayerNamesLocal(newNames)
   }
 
+  const playerCount = typeof numPlayers === 'number' ? numPlayers : 0
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -115,7 +126,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                 id="num-players"
                 type="number"
                 min="2"
-                value={numPlayers}
+                value={numPlayers === '' ? '' : numPlayers}
                 onChange={(e) => handleNumPlayersChange(e.target.value)}
               />
               <p className="text-sm text-muted-foreground">
@@ -129,7 +140,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
             <div className="space-y-3">
               <Label>Player Names</Label>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {Array.from({ length: numPlayers }).map((_, index) => (
+                {Array.from({ length: playerCount }).map((_, index) => (
                   <div key={index} className="space-y-1">
                     <Label htmlFor={`player-${index}`} className="text-xs text-muted-foreground">
                       Player {index + 1}
@@ -154,9 +165,15 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                 id="increment-step"
                 type="number"
                 min="1"
-                value={incrementStep}
+                value={incrementStep === '' ? '' : incrementStep}
                 onChange={(e) => {
-                  const step = parseInt(e.target.value, 10)
+                  const value = e.target.value
+                  if (value === '') {
+                    setIncrementStepLocal('')
+                    return
+                  }
+
+                  const step = parseInt(value, 10)
                   if (!isNaN(step) && step >= 1) {
                     setIncrementStepLocal(step)
                   }
@@ -175,9 +192,15 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
               <Input
                 id="default-score"
                 type="number"
-                value={defaultScore}
+                value={defaultScore === '' ? '' : defaultScore}
                 onChange={(e) => {
-                  const score = parseInt(e.target.value, 10)
+                  const value = e.target.value
+                  if (value === '') {
+                    setDefaultScoreLocal('')
+                    return
+                  }
+
+                  const score = parseInt(value, 10)
                   if (!isNaN(score)) {
                     setDefaultScoreLocal(score)
                   }
