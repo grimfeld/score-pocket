@@ -62,4 +62,9 @@
   .touch-manipulation {
     touch-action: manipulation;
   }
+  /* Disables pan/zoom gestures on the element so every simultaneous touch
+     produces an independent pointer event (required for multi-touch buttons). */
+  .touch-none {
+    touch-action: none;
+  }
 }
