@@ -2,10 +2,8 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useGameStore } from '@/stores/gameStore'
 import { useEffect } from 'react'
 import PlayerCard from '@/components/PlayerCard'
-import SettingsPanel from '@/components/SettingsPanel'
 import { Settings, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
 
 export const Route = createFileRoute('/')({
   component: GameView,
@@ -13,7 +11,6 @@ export const Route = createFileRoute('/')({
 
 function GameView() {
   const { players, initialized, init } = useGameStore()
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -61,7 +58,7 @@ function GameView() {
         <Button
           variant="outline"
           size="icon"
-          onClick={() => setSettingsOpen(true)}
+          onClick={() => navigate({ to: '/settings' })}
           className="h-10 w-10 sm:h-12 sm:w-12"
         >
           <Settings className="h-5 w-5" />
@@ -74,9 +71,6 @@ function GameView() {
           <PlayerCard key={player.id} player={player} index={index} />
         ))}
       </div>
-
-      {/* Settings Panel */}
-      <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   )
 }
