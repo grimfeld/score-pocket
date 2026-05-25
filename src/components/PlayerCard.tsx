@@ -129,7 +129,7 @@ export default function PlayerCard({ player, index }: PlayerCardProps) {
             {...decrementHandlers}
             variant="outline"
             size="lg"
-            className="h-14 w-14 sm:h-16 sm:w-16 md:h-20 md:w-20 p-0 aspect-square rounded-full touch-manipulation select-none border-red-500/40 bg-red-950/20 text-red-400 hover:bg-red-950/30 hover:border-red-500/60 flex items-center justify-center"
+            className="h-14 w-14 sm:h-16 sm:w-16 md:h-20 md:w-20 p-0 aspect-square rounded-full touch-none select-none border-red-500/40 bg-red-950/20 text-red-400 hover:bg-red-950/30 hover:border-red-500/60 flex items-center justify-center"
           >
             <Minus className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 stroke-[2.5]" />
           </Button>
@@ -137,7 +137,7 @@ export default function PlayerCard({ player, index }: PlayerCardProps) {
             {...incrementHandlers}
             variant="outline"
             size="lg"
-            className="h-14 w-14 sm:h-16 sm:w-16 md:h-20 md:w-20 p-0 aspect-square rounded-full touch-manipulation select-none border-green-500/40 bg-green-950/20 text-green-400 hover:bg-green-950/30 hover:border-green-500/60 flex items-center justify-center"
+            className="h-14 w-14 sm:h-16 sm:w-16 md:h-20 md:w-20 p-0 aspect-square rounded-full touch-none select-none border-green-500/40 bg-green-950/20 text-green-400 hover:bg-green-950/30 hover:border-green-500/60 flex items-center justify-center"
           >
             <Plus className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 stroke-[2.5]" />
           </Button>
