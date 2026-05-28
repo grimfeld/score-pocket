@@ -5,15 +5,11 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { routeTree } from './routeTree.gen'
 import { registerSW } from 'virtual:pwa-register'
 import './index.css'
-import { db } from './lib/db'
 
 // PWA: register service worker (auto-updates when a new version is available)
 if (import.meta.env.PROD) {
   registerSW({ immediate: true })
 }
-
-// Initialize IndexedDB
-db.init().catch(console.error)
 
 // Create a new router instance
 const router = createRouter({ routeTree })
@@ -26,7 +22,15 @@ declare module '@tanstack/react-router' {
 }
 
 // Create a client
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

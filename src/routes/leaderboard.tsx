@@ -1,87 +1,50 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useGameStore } from '@/stores/gameStore'
-import { useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Trophy } from 'lucide-react'
-import { type Player } from '@/lib/db'
+import { ArrowLeft, Trophy, ArrowUpDown } from 'lucide-react'
+import { usePlayerStats, type PlayerStat } from '@/hooks/usePlayerStats'
 
 export const Route = createFileRoute('/leaderboard')({
   component: LeaderboardView,
 })
 
-interface RankedPlayer extends Player {
-  rank: number
+type SortKey = 'played' | 'wins' | 'winRate'
+
+const COLUMNS: { key: SortKey; label: string }[] = [
+  { key: 'played', label: 'Played' },
+  { key: 'wins', label: 'Wins' },
+  { key: 'winRate', label: 'Win rate' },
+]
+
+function sortValue(stat: PlayerStat, key: SortKey) {
+  if (key === 'winRate') return stat.winRate ?? -1
+  return stat[key]
+}
+
+function formatWinRate(rate: number | null) {
+  if (rate === null) return '—'
+  return `${Math.round(rate * 100)}%`
 }
 
 function LeaderboardView() {
-  const { players, initialized, init } = useGameStore()
   const navigate = useNavigate()
+  const { stats, isLoading, isError } = usePlayerStats()
+  const [sortKey, setSortKey] = useState<SortKey>('winRate')
 
-  useEffect(() => {
-    if (!initialized) {
-      init()
-    }
-  }, [initialized, init])
-
-  if (!initialized) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-lg">Loading...</div>
-      </div>
-    )
-  }
-
-  // Sort players by totalScore descending and assign ranks
-  const sortedPlayers = [...players].sort((a, b) => b.totalScore - a.totalScore)
-  const rankedPlayers: RankedPlayer[] = []
-  let currentRank = 1
-  
-  sortedPlayers.forEach((player, index) => {
-    // Handle ties: if previous player has same score, use same rank
-    if (index > 0 && sortedPlayers[index - 1].totalScore !== player.totalScore) {
-      // Only increment rank if score is different
-      currentRank = index + 1
-    }
-    rankedPlayers.push({ ...player, rank: currentRank })
-  })
-
-  const getMedalIcon = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return '🥇'
-      case 2:
-        return '🥈'
-      case 3:
-        return '🥉'
-      default:
-        return null
-    }
-  }
-
-  const getRankDisplay = (rank: number) => {
-    const medal = getMedalIcon(rank)
-    if (medal) {
-      return <span className="text-2xl">{medal}</span>
-    }
-    return <span className="text-lg font-semibold">#{rank}</span>
-  }
-
-  const getTopPlayerStyle = (rank: number) => {
-    if (rank === 1) {
-      return 'bg-gradient-to-br from-yellow-900/30 to-amber-900/20 border-yellow-500/40'
-    } else if (rank === 2) {
-      return 'bg-gradient-to-br from-gray-800/30 to-gray-700/20 border-gray-400/40'
-    } else if (rank === 3) {
-      return 'bg-gradient-to-br from-orange-900/30 to-orange-800/20 border-orange-500/40'
-    }
-    return 'bg-card border-border'
-  }
+  const sorted = useMemo(() => {
+    return [...stats].sort((a, b) => {
+      const diff = sortValue(b, sortKey) - sortValue(a, sortKey)
+      if (diff !== 0) return diff
+      // Tie-breakers keep the order stable and sensible.
+      if (b.wins !== a.wins) return b.wins - a.wins
+      return a.name.localeCompare(b.name)
+    })
+  }, [stats, sortKey])
 
   return (
     <div className="min-h-screen bg-background p-3 sm:p-4 md:p-6 lg:p-8">
-      {/* Header with Back Button */}
-      <div className="mb-6 sm:mb-8 flex items-center justify-between">
+      <div className="mb-6 sm:mb-8 flex items-center justify-between max-w-3xl mx-auto">
         <Button
           variant="outline"
           size="sm"
@@ -89,57 +52,85 @@ function LeaderboardView() {
           onClick={() => navigate({ to: '/' })}
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Game
+          Back
         </Button>
         <div className="flex items-center gap-2">
           <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-500" />
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Leaderboard</h1>
         </div>
-        <div className="w-[100px]"></div> {/* Spacer for centering */}
+        <div className="w-[72px]" />
       </div>
 
-      {/* Leaderboard List */}
-      <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
-        {rankedPlayers.length === 0 ? (
+      <div className="max-w-3xl mx-auto space-y-4">
+        {/* Sort controls */}
+        <div className="flex items-center gap-2 justify-end">
+          <span className="text-sm text-muted-foreground flex items-center gap-1">
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            Sort by
+          </span>
+          {COLUMNS.map((col) => (
+            <Button
+              key={col.key}
+              size="sm"
+              variant={sortKey === col.key ? 'default' : 'outline'}
+              onClick={() => setSortKey(col.key)}
+            >
+              {col.label}
+            </Button>
+          ))}
+        </div>
+
+        {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+
+        {isError && (
           <Card>
-            <CardContent className="p-8 text-center text-muted-foreground">
-              No players yet. Start a game to see the leaderboard!
+            <CardContent className="p-4 text-sm text-red-400">
+              Couldn't reach the backend. Make sure Pocketbase is running (see
+              README).
             </CardContent>
           </Card>
-        ) : (
-          rankedPlayers.map((player) => (
-            <Card
-              key={player.id}
-              className={`transition-shadow hover:shadow-lg border-2 ${getTopPlayerStyle(player.rank)}`}
-            >
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center justify-between gap-4">
-                  {/* Rank */}
-                  <div className="flex items-center justify-center w-12 sm:w-16 flex-shrink-0">
-                    {getRankDisplay(player.rank)}
-                  </div>
+        )}
 
-                  {/* Player Name */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-base sm:text-lg md:text-xl font-semibold truncate">
-                      {player.name}
-                    </h3>
-                  </div>
+        {!isLoading && !isError && sorted.length === 0 && (
+          <Card>
+            <CardContent className="p-8 text-center text-muted-foreground">
+              No stats yet. Finish a game with a winner to populate the leaderboard.
+            </CardContent>
+          </Card>
+        )}
 
-                  {/* Score */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-2xl sm:text-3xl md:text-4xl font-bold">
-                      {player.totalScore}
-                    </span>
-                    <span className="text-sm text-muted-foreground">pts</span>
-                  </div>
+        {sorted.length > 0 && (
+          <Card>
+            <CardContent className="p-0">
+              {/* Header row */}
+              <div className="grid grid-cols-[2rem_1fr_4rem_4rem_5rem] sm:grid-cols-[3rem_1fr_5rem_5rem_6rem] items-center gap-2 px-3 sm:px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
+                <span>#</span>
+                <span>Player</span>
+                <span className="text-right">Played</span>
+                <span className="text-right">Wins</span>
+                <span className="text-right">Win rate</span>
+              </div>
+
+              {sorted.map((stat, index) => (
+                <div
+                  key={stat.id}
+                  className="grid grid-cols-[2rem_1fr_4rem_4rem_5rem] sm:grid-cols-[3rem_1fr_5rem_5rem_6rem] items-center gap-2 px-3 sm:px-4 py-3 border-b border-border/50 last:border-0"
+                >
+                  <span className="text-sm font-semibold text-muted-foreground">
+                    {index + 1}
+                  </span>
+                  <span className="font-medium truncate">{stat.name}</span>
+                  <span className="text-right tabular-nums">{stat.played}</span>
+                  <span className="text-right tabular-nums">{stat.wins}</span>
+                  <span className="text-right tabular-nums font-semibold">
+                    {formatWinRate(stat.winRate)}
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
-          ))
+              ))}
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
   )
 }
-

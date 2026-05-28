@@ -1,255 +1,122 @@
 import { create } from 'zustand'
-import { db, type Player, type GameSettings, type GameSession } from '@/lib/db'
+import { pb } from '@/lib/pocketbase'
 
-interface GameState {
-  players: Player[]
-  settings: GameSettings
-  initialized: boolean
+const DIFF_RESET_MS = 5000
+const SYNC_DEBOUNCE_MS = 800
+
+interface LiveGameState {
+  sessionId: string | null
+  scores: Record<string, number>
+  diffs: Record<string, number>
+  baselines: Record<string, number>
+  incrementStep: number
   diffTimeouts: Map<string, ReturnType<typeof setTimeout>>
-  
-  // Actions
-  init: () => Promise<void>
+  syncTimeout: ReturnType<typeof setTimeout> | null
+
+  loadSession: (
+    sessionId: string,
+    scores: Record<string, number>,
+    incrementStep: number
+  ) => void
   updateScore: (playerId: string, delta: number) => void
-  updatePlayerName: (playerId: string, name: string) => void
-  setIncrementStep: (step: number) => void
-  setNumPlayers: (num: number) => void
-  setPlayerNames: (names: string[]) => void
-  setDefaultScore: (score: number) => void
-  resetGame: () => void
-  saveToDB: () => Promise<void>
-  resetPlayerDiff: (playerId: string) => void
+  resetDiff: (playerId: string) => void
+  scheduleSync: () => void
+  syncNow: () => Promise<void>
+  clear: () => void
 }
 
-const createDefaultPlayers = (count: number, defaultScore: number = 0): Player[] => {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `player-${i + 1}`,
-    name: `Player ${i + 1}`,
-    totalScore: defaultScore,
-    lastScore: defaultScore,
-    diff: 0,
-  }))
-}
-
-const defaultSettings: GameSettings = {
+export const useGameStore = create<LiveGameState>((set, get) => ({
+  sessionId: null,
+  scores: {},
+  diffs: {},
+  baselines: {},
   incrementStep: 1,
-  numPlayers: 4,
-  defaultScore: 0,
-}
-
-export const useGameStore = create<GameState>((set, get) => ({
-  players: createDefaultPlayers(4, defaultSettings.defaultScore),
-  settings: defaultSettings,
-  initialized: false,
   diffTimeouts: new Map(),
+  syncTimeout: null,
 
-  init: async () => {
-    try {
-      const saved = await db.loadSession()
-      if (saved) {
-        // Migrate old settings that don't have defaultScore
-        const migratedSettings: GameSettings = {
-          ...defaultSettings,
-          ...saved.settings,
-          defaultScore: saved.settings.defaultScore ?? defaultSettings.defaultScore,
-        }
-        
-        // Reset all diffs to 0 when loading (timeouts aren't persisted)
-        const playersWithResetDiff = saved.players.map((player) => ({
-          ...player,
-          diff: 0,
-          lastScore: player.totalScore, // Set lastScore to current totalScore
-        }))
-        set({
-          players: playersWithResetDiff,
-          settings: migratedSettings,
-          initialized: true,
-        })
-      } else {
-        set({
-          players: createDefaultPlayers(defaultSettings.numPlayers, defaultSettings.defaultScore),
-          settings: defaultSettings,
-          initialized: true,
-        })
-      }
-    } catch (error) {
-      console.error('Failed to load session:', error)
-      set({
-        players: createDefaultPlayers(defaultSettings.numPlayers, defaultSettings.defaultScore),
-        settings: defaultSettings,
-        initialized: true,
-      })
-    }
-  },
-
-  updateScore: (playerId: string, delta: number) => {
-    const { players, diffTimeouts } = get()
-    
-    // Clear existing timeout for this player
-    const existingTimeout = diffTimeouts.get(playerId)
-    if (existingTimeout) {
-      clearTimeout(existingTimeout)
-    }
-    
-    const updatedPlayers = players.map((player) => {
-      if (player.id === playerId) {
-        const previousTotal = player.totalScore
-        const newTotalScore = previousTotal + delta
-        
-        // If diff is 0, this is the start of a new series - reset lastScore
-        // Otherwise, accumulate the diff from the lastScore baseline
-        const baselineScore = player.diff === 0 ? previousTotal : player.lastScore
-        const newDiff = newTotalScore - baselineScore
-        
-        // Set a timeout to reset the diff after 5 seconds
-        const timeout = setTimeout(() => {
-          get().resetPlayerDiff(playerId)
-        }, 5000)
-        
-        diffTimeouts.set(playerId, timeout)
-        
-        return {
-          ...player,
-          totalScore: newTotalScore,
-          lastScore: baselineScore, // Keep the baseline for accumulation
-          diff: newDiff,
-        }
-      }
-      return player
-    })
-    
-    set({ players: updatedPlayers })
-    get().saveToDB()
-  },
-
-  updatePlayerName: (playerId: string, name: string) => {
-    const { players } = get()
-    const updatedPlayers = players.map((player) =>
-      player.id === playerId ? { ...player, name } : player
-    )
-    set({ players: updatedPlayers })
-    get().saveToDB()
-  },
-
-  setIncrementStep: (step: number) => {
-    const { settings } = get()
-    set({
-      settings: {
-        ...settings,
-        incrementStep: step,
-      },
-    })
-    get().saveToDB()
-  },
-
-  setDefaultScore: (score: number) => {
-    const { settings } = get()
-    set({
-      settings: {
-        ...settings,
-        defaultScore: score,
-      },
-    })
-    get().saveToDB()
-  },
-
-  setNumPlayers: (num: number) => {
-    const { players, settings, diffTimeouts } = get()
-    const currentCount = players.length
-    
-    if (num > currentCount) {
-      // Add new players
-      const newPlayers = Array.from({ length: num - currentCount }, (_, i) => ({
-        id: `player-${currentCount + i + 1}`,
-        name: `Player ${currentCount + i + 1}`,
-        totalScore: settings.defaultScore,
-        lastScore: settings.defaultScore,
-        diff: 0,
-      }))
-      set({
-        players: [...players, ...newPlayers],
-        settings: { ...settings, numPlayers: num },
-      })
-    } else if (num < currentCount) {
-      // Remove players (keep first N) - clean up timeouts for removed players
-      const remainingPlayerIds = new Set(players.slice(0, num).map(p => p.id))
-      diffTimeouts.forEach((timeout, playerId) => {
-        if (!remainingPlayerIds.has(playerId)) {
-          clearTimeout(timeout)
-          diffTimeouts.delete(playerId)
-        }
-      })
-      
-      set({
-        players: players.slice(0, num),
-        settings: { ...settings, numPlayers: num },
-      })
-    } else {
-      set({
-        settings: { ...settings, numPlayers: num },
-      })
-    }
-    get().saveToDB()
-  },
-
-  setPlayerNames: (names: string[]) => {
-    const { players } = get()
-    const updatedPlayers = players.map((player, index) =>
-      index < names.length ? { ...player, name: names[index] } : player
-    )
-    set({ players: updatedPlayers })
-    get().saveToDB()
-  },
-
-  resetGame: () => {
-    const { players, settings, diffTimeouts } = get()
-    
-    // Clear all timeouts
-    diffTimeouts.forEach((timeout) => clearTimeout(timeout))
+  loadSession: (sessionId, scores, incrementStep) => {
+    const { diffTimeouts, syncTimeout } = get()
+    diffTimeouts.forEach((t) => clearTimeout(t))
     diffTimeouts.clear()
-    
-    const resetPlayers = players.map((player) => ({
-      ...player,
-      totalScore: settings.defaultScore,
-      lastScore: settings.defaultScore,
-      diff: 0,
-    }))
-    set({ players: resetPlayers })
-    get().saveToDB()
+    if (syncTimeout) clearTimeout(syncTimeout)
+
+    set({
+      sessionId,
+      scores: { ...scores },
+      diffs: {},
+      baselines: {},
+      incrementStep,
+      syncTimeout: null,
+    })
   },
 
-  resetPlayerDiff: (playerId: string) => {
-    const { players, diffTimeouts } = get()
-    
-    // Clear the timeout
+  updateScore: (playerId, delta) => {
+    const { scores, diffs, baselines, diffTimeouts } = get()
+
+    const existing = diffTimeouts.get(playerId)
+    if (existing) clearTimeout(existing)
+
+    const prevTotal = scores[playerId] ?? 0
+    const newTotal = prevTotal + delta
+    const currentDiff = diffs[playerId] ?? 0
+    // Start a new diff series from the current total, or keep accumulating
+    // against the existing baseline while a series is in progress.
+    const baseline = currentDiff === 0 ? prevTotal : baselines[playerId] ?? prevTotal
+    const newDiff = newTotal - baseline
+
+    const timeout = setTimeout(() => get().resetDiff(playerId), DIFF_RESET_MS)
+    diffTimeouts.set(playerId, timeout)
+
+    set({
+      scores: { ...scores, [playerId]: newTotal },
+      diffs: { ...diffs, [playerId]: newDiff },
+      baselines: { ...baselines, [playerId]: baseline },
+    })
+    get().scheduleSync()
+  },
+
+  resetDiff: (playerId) => {
+    const { diffs, diffTimeouts } = get()
     const timeout = diffTimeouts.get(playerId)
     if (timeout) {
       clearTimeout(timeout)
       diffTimeouts.delete(playerId)
     }
-    
-    const updatedPlayers = players.map((player) => {
-      if (player.id === playerId) {
-        // Reset diff to 0 and update lastScore to current totalScore
-        return {
-          ...player,
-          lastScore: player.totalScore,
-          diff: 0,
-        }
-      }
-      return player
-    })
-    
-    set({ players: updatedPlayers })
-    get().saveToDB()
+    set({ diffs: { ...diffs, [playerId]: 0 } })
   },
 
-  saveToDB: async () => {
-    try {
-      const { players, settings } = get()
-      const session: GameSession = { players, settings }
-      await db.saveSession(session)
-    } catch (error) {
-      console.error('Failed to save session:', error)
+  scheduleSync: () => {
+    const { syncTimeout } = get()
+    if (syncTimeout) clearTimeout(syncTimeout)
+    const timeout = setTimeout(() => get().syncNow(), SYNC_DEBOUNCE_MS)
+    set({ syncTimeout: timeout })
+  },
+
+  syncNow: async () => {
+    const { sessionId, scores, syncTimeout } = get()
+    if (syncTimeout) {
+      clearTimeout(syncTimeout)
+      set({ syncTimeout: null })
     }
+    if (!sessionId) return
+    try {
+      await pb.collection('sessions').update(sessionId, { scores })
+    } catch (error) {
+      console.error('Failed to sync scores:', error)
+    }
+  },
+
+  clear: () => {
+    const { diffTimeouts, syncTimeout } = get()
+    diffTimeouts.forEach((t) => clearTimeout(t))
+    diffTimeouts.clear()
+    if (syncTimeout) clearTimeout(syncTimeout)
+    set({
+      sessionId: null,
+      scores: {},
+      diffs: {},
+      baselines: {},
+      syncTimeout: null,
+    })
   },
 }))
