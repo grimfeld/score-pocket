@@ -4,11 +4,12 @@ A companion app for card and board games that allows users to keep scores for an
 
 ## Features
 
-- 🎮 Multi-player score tracking (unlimited players)
+- 👤 Reusable, uniquely-named players stored in the backend
+- 🎮 Game sessions with assigned players and live score tracking
+- 🏆 Mark one or more winners when a game ends
+- 📊 Global leaderboard with games played, wins, and win rate (sortable)
 - 📱 Landscape-optimized layout for table viewing
-- ✏️ Editable player names
-- ➕➖ Customizable increment/decrement step
-- 💾 Session persistence with IndexedDB (survives page refresh)
+- ➕➖ Per-session increment step and starting score
 - 🎨 Beautiful, modern UI with dark mode support
 - 📊 Shows total score and current diff from last score
 
@@ -16,31 +17,61 @@ A companion app for card and board games that allows users to keep scores for an
 
 - **React 18** with TypeScript
 - **TanStack Router** for routing
-- **TanStack Query** for data management
-- **Zustand** for state management
+- **TanStack Query** for server-state management
+- **Zustand** for live in-game score state
 - **TailwindCSS** for styling
 - **shadcn/ui** for UI components
-- **IndexedDB** for local storage
+- **Pocketbase** for the backend (SQLite + REST API)
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 18+ and npm/yarn/pnpm
+- The [Pocketbase](https://pocketbase.io/docs/) binary (single self-contained executable)
 
-### Installation
+### 1. Run the backend (Pocketbase)
+
+The app talks to a Pocketbase instance. There is **no login** — all collections
+are world-readable/writable, so only expose the instance to trusted networks.
+
+1. Download the Pocketbase executable for your OS from
+   <https://pocketbase.io/docs/> (or its GitHub releases) and place it in the
+   project root (it is gitignored).
+2. Start it, pointing at the bundled migrations so the schema is created
+   automatically on first run:
+
+   ```bash
+   ./pocketbase serve --migrationsDir ./pb_migrations
+   ```
+
+   - API: `http://127.0.0.1:8090`
+   - Admin UI: `http://127.0.0.1:8090/_/`
+
+   The `pb_migrations/` directory creates the `players` and `sessions`
+   collections on startup. (Targets Pocketbase v0.23+; tested format against
+   v0.28.)
+
+### 2. Run the frontend
 
 1. Install dependencies:
 ```bash
 npm install
 ```
 
-2. Start the development server:
+2. Point the app at your Pocketbase URL (optional — defaults to
+   `http://127.0.0.1:8090`):
+```bash
+cp .env.example .env
+# edit VITE_POCKETBASE_URL if needed
+```
+
+3. Start the development server:
 ```bash
 npm run dev
 ```
 
-3. Open your browser to the URL shown in the terminal (usually `http://localhost:5173`)
+4. Open your browser to the URL shown in the terminal (usually `http://localhost:5173`)
 
 ### Building for Production
 
@@ -52,34 +83,43 @@ The built files will be in the `dist` directory.
 
 ## Usage
 
-1. Open the app on your phone/tablet
-2. Rotate to landscape orientation for best viewing
-3. Place the device in the middle of the table
-4. Use the settings button (⚙️) to configure:
-   - Number of players (minimum 2)
-   - Player names
-   - Increment step value
-5. Click player names to edit them inline
-6. Use +/- buttons to update scores
-7. The diff shows the change from the last score update
+1. **Players** (👥): add the people who play. Names are unique and reused across games.
+2. **New Game** (➕): name the game (optional), pick at least 2 players, set the
+   increment step and starting score, then start.
+3. **Play**: place the device in the middle of the table (landscape is best) and use
+   the +/- buttons to update each player's score. The diff shows the recent change.
+4. **Finish**: tap *Finish*, pick one or more winners (the current top scorer is
+   pre-selected — change it for low-score-wins games or ties), and confirm.
+5. **Leaderboard** (🏆): see games played, wins, and win rate per player. Tap a column
+   to sort.
 
 ## Project Structure
 
 ```
 score-pocket/
+├── pb_migrations/        # Pocketbase schema migrations (players, sessions)
 ├── src/
 │   ├── components/
 │   │   ├── ui/           # shadcn/ui components
-│   │   ├── PlayerCard.tsx
-│   │   └── SettingsPanel.tsx
+│   │   └── PlayerCard.tsx
+│   ├── hooks/
+│   │   ├── usePlayers.ts      # players CRUD (TanStack Query)
+│   │   ├── useSessions.ts     # sessions CRUD + active session
+│   │   ├── usePlayerStats.ts  # leaderboard aggregation
+│   │   └── usePressAndHold.ts
 │   ├── lib/
-│   │   ├── db.ts         # IndexedDB wrapper
+│   │   ├── pocketbase.ts # Pocketbase client + record types
 │   │   └── utils.ts      # Utility functions
 │   ├── routes/
 │   │   ├── __root.tsx
-│   │   └── index.tsx     # Main game view
+│   │   ├── index.tsx           # Home (active + recent games)
+│   │   ├── players.tsx         # Manage players
+│   │   ├── leaderboard.tsx     # Global stats
+│   │   └── sessions/
+│   │       ├── new.tsx         # Create a game
+│   │       └── $sessionId.tsx  # Play / view a game
 │   ├── stores/
-│   │   └── gameStore.ts  # Game state management
+│   │   └── gameStore.ts  # Live in-game scores (synced to Pocketbase)
 │   ├── App.tsx
 │   ├── main.tsx
 │   └── index.css

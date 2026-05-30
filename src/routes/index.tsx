@@ -1,75 +1,167 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useGameStore } from '@/stores/gameStore'
-import { useEffect } from 'react'
-import PlayerCard from '@/components/PlayerCard'
-import { Settings, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Trophy, Users, Plus, Play, Crown } from 'lucide-react'
+import { useActiveSession, useSessions } from '@/hooks/useSessions'
+import { type SessionRecord } from '@/lib/pocketbase'
 
 export const Route = createFileRoute('/')({
-  component: GameView,
+  component: HomeView,
 })
 
-function GameView() {
-  const { players, initialized, init } = useGameStore()
+function formatDate(iso: string) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function sessionLabel(session: SessionRecord) {
+  if (session.name) return session.name
+  return `Game · ${formatDate(session.created)}`
+}
+
+function HomeView() {
   const navigate = useNavigate()
+  const { data: activeSession } = useActiveSession()
+  const { data: sessions, isLoading, isError } = useSessions()
 
-  useEffect(() => {
-    if (!initialized) {
-      init()
-    }
-  }, [initialized, init])
-
-  if (!initialized) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-lg">Loading...</div>
-      </div>
-    )
-  }
-
-  // Determine grid layout based on number of players
-  // Landscape-optimized: horizontal layout for 2-4 players, grid for more
-  const getGridClass = () => {
-    if (players.length === 2) {
-      return 'grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6'
-    } else if (players.length === 3) {
-      return 'grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6'
-    } else if (players.length === 4) {
-      return 'grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6'
-    } else if (players.length <= 6) {
-      return 'grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-5'
-    } else {
-      return 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5'
-    }
-  }
+  const finished = (sessions ?? []).filter((s) => s.status === 'finished')
 
   return (
-    <div className="min-h-screen bg-background p-3 sm:p-4 md:p-6 lg:p-8 landscape:p-4">
-      {/* Header with Settings and Leaderboard Buttons */}
-      <div className="mb-4 sm:mb-6 flex justify-end gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => navigate({ to: '/leaderboard' })}
-          className="h-10 w-10 sm:h-12 sm:w-12"
-        >
-          <Trophy className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => navigate({ to: '/settings' })}
-          className="h-10 w-10 sm:h-12 sm:w-12"
-        >
-          <Settings className="h-5 w-5" />
-        </Button>
+    <div className="min-h-screen bg-background p-3 sm:p-4 md:p-6 lg:p-8">
+      {/* Header */}
+      <div className="mb-6 sm:mb-8 flex items-center justify-between max-w-3xl mx-auto">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Score Pocket</h1>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigate({ to: '/players' })}
+            className="h-10 w-10 sm:h-12 sm:w-12"
+            title="Players"
+          >
+            <Users className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigate({ to: '/leaderboard' })}
+            className="h-10 w-10 sm:h-12 sm:w-12"
+            title="Leaderboard"
+          >
+            <Trophy className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
 
-      {/* Players Grid - Optimized for landscape table viewing */}
-      <div className={`grid ${getGridClass()} max-w-[2000px] mx-auto`}>
-        {players.map((player, index) => (
-          <PlayerCard key={player.id} player={player} index={index} />
-        ))}
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Active session */}
+        {activeSession && (
+          <Card className="border-2 border-green-500/40 bg-green-950/10">
+            <CardContent className="p-4 sm:p-6 flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-wide text-green-400 mb-1">
+                  Game in progress
+                </p>
+                <h2 className="text-lg sm:text-xl font-semibold truncate">
+                  {sessionLabel(activeSession)}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {activeSession.expand?.players?.length ?? activeSession.players.length} players
+                </p>
+              </div>
+              <Button
+                size="lg"
+                className="gap-2 flex-shrink-0"
+                onClick={() =>
+                  navigate({
+                    to: '/sessions/$sessionId',
+                    params: { sessionId: activeSession.id },
+                  })
+                }
+              >
+                <Play className="h-5 w-5" />
+                Resume
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* New game */}
+        <Button
+          size="lg"
+          className="w-full h-14 text-base gap-2"
+          onClick={() => navigate({ to: '/sessions/new' })}
+        >
+          <Plus className="h-5 w-5" />
+          New Game
+        </Button>
+
+        {/* Recent games */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Recent games
+          </h2>
+
+          {isLoading && (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          )}
+
+          {isError && (
+            <Card>
+              <CardContent className="p-4 text-sm text-red-400">
+                Couldn't reach the backend. Make sure Pocketbase is running (see
+                README).
+              </CardContent>
+            </Card>
+          )}
+
+          {!isLoading && !isError && finished.length === 0 && (
+            <Card>
+              <CardContent className="p-6 text-center text-muted-foreground">
+                No finished games yet. Start a new game to track stats.
+              </CardContent>
+            </Card>
+          )}
+
+          {finished.map((session) => {
+            const winners = session.expand?.winners ?? []
+            return (
+              <Card
+                key={session.id}
+                className="cursor-pointer transition-shadow hover:shadow-lg"
+                onClick={() =>
+                  navigate({
+                    to: '/sessions/$sessionId',
+                    params: { sessionId: session.id },
+                  })
+                }
+              >
+                <CardContent className="p-4 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold truncate">{sessionLabel(session)}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {session.expand?.players?.length ?? session.players.length} players
+                      {session.finishedAt ? ` · ${formatDate(session.finishedAt)}` : ''}
+                    </p>
+                  </div>
+                  {winners.length > 0 && (
+                    <div className="flex items-center gap-1.5 text-sm flex-shrink-0 text-yellow-400">
+                      <Crown className="h-4 w-4" />
+                      <span className="truncate max-w-[40vw]">
+                        {winners.map((w) => w.name).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

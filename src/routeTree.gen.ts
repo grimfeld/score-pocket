@@ -12,8 +12,10 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as IndexImport } from './routes/index'
+import { Route as PlayersImport } from './routes/players'
 import { Route as LeaderboardImport } from './routes/leaderboard'
-import { Route as SettingsImport } from './routes/settings'
+import { Route as SessionsNewImport } from './routes/sessions/new'
+import { Route as SessionsSessionIdImport } from './routes/sessions/$sessionId'
 
 // Create/Update Routes
 
@@ -23,15 +25,27 @@ const IndexRoute = IndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const PlayersRoute = PlayersImport.update({
+  id: '/players',
+  path: '/players',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const LeaderboardRoute = LeaderboardImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
   getParentRoute: () => rootRoute,
 } as any)
 
-const SettingsRoute = SettingsImport.update({
-  id: '/settings',
-  path: '/settings',
+const SessionsNewRoute = SessionsNewImport.update({
+  id: '/sessions/new',
+  path: '/sessions/new',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const SessionsSessionIdRoute = SessionsSessionIdImport.update({
+  id: '/sessions/$sessionId',
+  path: '/sessions/$sessionId',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -46,6 +60,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
+    '/players': {
+      id: '/players'
+      path: '/players'
+      fullPath: '/players'
+      preLoaderRoute: typeof PlayersImport
+      parentRoute: typeof rootRoute
+    }
     '/leaderboard': {
       id: '/leaderboard'
       path: '/leaderboard'
@@ -53,11 +74,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeaderboardImport
       parentRoute: typeof rootRoute
     }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsImport
+    '/sessions/new': {
+      id: '/sessions/new'
+      path: '/sessions/new'
+      fullPath: '/sessions/new'
+      preLoaderRoute: typeof SessionsNewImport
+      parentRoute: typeof rootRoute
+    }
+    '/sessions/$sessionId': {
+      id: '/sessions/$sessionId'
+      path: '/sessions/$sessionId'
+      fullPath: '/sessions/$sessionId'
+      preLoaderRoute: typeof SessionsSessionIdImport
       parentRoute: typeof rootRoute
     }
   }
@@ -65,6 +93,12 @@ declare module '@tanstack/react-router' {
 
 // Create and export the route tree
 
-export const routeTree = rootRoute.addChildren({ IndexRoute, LeaderboardRoute, SettingsRoute })
+export const routeTree = rootRoute.addChildren({
+  IndexRoute,
+  PlayersRoute,
+  LeaderboardRoute,
+  SessionsNewRoute,
+  SessionsSessionIdRoute,
+})
 
 /* prettier-ignore-end */
